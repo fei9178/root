@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聊天室管理后台</title>
+<style>
+:root{--bg:#0f1419;--panel:#161d26;--panel2:#1c2531;--line:#2a3444;
+--txt:#e6ebf2;--sub:#8a97a8;--accent:#4f9cff;--ok:#3fb950;--warn:#f85149;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--txt);min-height:100vh;padding:14px;}
+.wrap{max-width:920px;margin:0 auto;}
+h1{font-size:20px;margin-bottom:4px;}
+.sub{color:var(--sub);font-size:13px;margin-bottom:16px;}
+.login{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:360px;margin:60px auto;}
+.login input{width:100%;padding:12px;background:var(--panel2);border:1px solid var(--line);
+border-radius:10px;color:var(--txt);font-size:15px;margin-bottom:12px;}
+.login button{width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;}
+.login button:active{opacity:.8;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px;margin-bottom:16px;}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;}
+.stat .n{font-size:24px;font-weight:700;}
+.stat .l{font-size:12px;color:var(--sub);margin-top:4px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px;}
+.card h2{font-size:15px;padding:14px;border-bottom:1px solid var(--line);
+display:flex;align-items:center;justify-content:space-between;}
+.card h2 .cnt{font-size:12px;color:var(--sub);font-weight:400;}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;}
+.tbl th,.tbl td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;}
+.tbl th{color:var(--sub);font-size:12px;font-weight:600;background:var(--panel2);}
+.tbl td.online{color:var(--ok);}
+.tbl td.offline{color:var(--sub);}
+.tbl tr:last-child td{border-bottom:none;}
+.mini{padding:5px 11px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);
+border-radius:8px;font-size:12px;cursor:pointer;margin-right:6px;}
+.mini.danger{border-color:rgba(248,81,73,.3);color:var(--warn);}
+.mini.ok{border-color:rgba(63,185,80,.3);color:var(--ok);}
+.mini:active{opacity:.7;}
+.mini:disabled{opacity:.4;cursor:not-allowed;}
+input.inline{padding:6px 10px;background:var(--panel2);border:1px solid var(--line);
+border-radius:8px;color:var(--txt);font-size:13px;width:140px;}
+.hidden{display:none!important;}
+.empty{color:var(--sub);font-size:13px;padding:20px;text-align:center;}
+.logout{background:none;border:none;color:var(--sub);font-size:13px;cursor:pointer;text-decoration:underline;}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.search-row{display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--line);}
+.search-row input{flex:1;padding:9px 12px;background:var(--panel2);border:1px solid var(--line);
+border-radius:10px;color:var(--txt);font-size:14px;}
+.search-row button{padding:9px 14px;border:none;border-radius:10px;background:var(--line);color:var(--txt);font-size:14px;}
+.toast{position:fixed;left:50%;bottom:60px;transform:translateX(-50%);background:rgba(0,0,0,.85);
+color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;z-index:999;}
+.tag{font-size:10px;padding:2px 6px;border-radius:6px;background:var(--panel2);color:var(--sub);}
+.tag.admin{color:var(--accent);}
+.tag.banned{color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login-box" class="login">
+    <h1>🛡️ 管理后台</h1>
+    <p class="sub" style="margin-bottom:18px;">仅管理员可访问</p>
+    <input id="adm-user" placeholder="管理员账号">
+    <input id="adm-pass" type="password" placeholder="管理员密码">
+    <button id="adm-go">登录后台</button>
+  </div>
+
+  <div id="admin-box" class="hidden">
+    <div class="head">
+      <h1>🛡️ 聊天室管理后台</h1>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <a href="/" class="logout" style="text-decoration:none;">← 返回聊天室</a>
+        <button class="logout" id="adm-out">退出登录</button>
+      </div>
+    </div>
+    <p class="sub">管理用户账号与权限、房间、查看在线状态与聊天记录</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="st-users">-</div><div class="l">注册用户</div></div>
+      <div class="stat"><div class="n" id="st-online">-</div><div class="l">当前在线</div></div>
+      <div class="stat"><div class="n" id="st-banned">-</div><div class="l">已封禁</div></div>
+      <div class="stat"><div class="n" id="st-rooms">-</div><div class="l">房间数</div></div>
+      <div class="stat"><div class="n" id="st-msgs">-</div><div class="l">消息总数</div></div>
+    </div>
+
+    <div class="card">
+      <h2><span>用户管理</span><span class="cnt" id="user-cnt"></span></h2>
+      <div class="search-row">
+        <input id="user-search" placeholder="按账号 / 昵称搜索, 留空显示全部">
+        <button id="user-search-btn">搜索</button>
+        <button id="user-reset">全部</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>账号</th><th>昵称</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>房间管理</span><span class="cnt" id="room-cnt"></span></h2>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>房间</th><th>创建者</th><th>成员</th><th>在线</th><th>加密</th><th>操作</th></tr></thead>
+          <tbody id="room-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>封禁记录</span><span class="cnt" id="ban-cnt"></span></h2>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>账号</th><th>昵称</th><th>状态</th></tr></thead>
+          <tbody id="ban-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+var admUser = "";        /* 管理员账号 (登录后拿到 token) */
+var admToken = "";       /* 登录凭证, 通过 X-User / X-Token 头发送 */
+function $(s){return document.querySelector(s);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function toast(m){var d=document.createElement("div");d.className="toast";d.textContent=m;
+document.body.appendChild(d);setTimeout(function(){d.remove();},1800);}
+/* 自动注入管理员鉴权头 */
+function post(path, data, cb){
+var h={"Content-Type":"application/json"};
+if(admUser && admToken){h["X-User"]=admUser;h["X-Token"]=admToken;}
+fetch(path, {method:"POST", headers:h, body:JSON.stringify(data)})
+.then(function(r){return r.json();}).then(cb).catch(function(){cb({ok:false,msg:"网络错误"});});}
+function get(path, cb){
+var h={};
+if(admUser && admToken){h["X-User"]=admUser;h["X-Token"]=admToken;}
+fetch(path, {headers:h}).then(function(r){return r.json();}).then(cb).catch(function(){cb({ok:false,msg:"网络错误"});});}
+
+$("#adm-go").onclick = function(){
+var u=$("#adm-user").value, p=$("#adm-pass").value;
+post("/api/login", {username:u, password:p}, function(j){
+if(j.ok && j.user && j.user.is_admin){
+admUser=u; admToken=j.user.token;
+$("#login-box").classList.add("hidden");$("#admin-box").classList.remove("hidden");load();
+}else if(j.ok){toast("该账号不是管理员");}
+else {toast(j.msg);}});
+};
+$("#adm-out").onclick = function(){
+admUser="";admToken="";location.reload();};
+
+function load(){
+get("/api/admin/users")
+.then(function(j){
+if(!j.ok){toast(j.msg);
+if(j.msg && (j.msg.indexOf("管理员权限")>=0 || j.msg.indexOf("登录")>=0)){
+  admUser=""; admToken="";
+  $("#admin-box").classList.add("hidden");
+  $("#login-box").classList.remove("hidden");
+}
+return;}
+var users=j.users, online=j.online||[];
+var onSet={};online.forEach(function(o){onSet[o.username]=true;});
+$("#st-users").textContent=users.length;
+$("#st-online").textContent=online.length;
+$("#st-banned").textContent=users.filter(function(u){return u.banned;}).length;
+$("#st-msgs").textContent=j.messages_count||0;
+$("#user-cnt").textContent=users.length+" 人";
+var tb=$("#user-tbody");tb.innerHTML="";
+users.forEach(function(u){
+var on=!!onSet[u.username];
+var tr=document.createElement("tr");
+tr.innerHTML="<td>@"+esc(u.username)+(u.is_admin?' <span class="tag admin">管理</span>':"")+(u.banned?' <span class="tag banned">已封</span>':"")+"</td>"+
+"<td>"+esc(u.nickname)+"</td>"+
+'<td class="'+(on?"online":"offline")+'">'+(on?"🟢 在线":"⚪ 离线")+"</td>"+
+"<td>"+(u.is_admin? '<span style="color:var(--sub);font-size:12px">—</span>'
+:'<button class="mini '+(u.banned?"ok":"danger")+'" data-u="'+esc(u.username)+'" data-ban="'+(!u.banned)+'">'+(u.banned?"解封":"封禁")+"</button>"
++'<button class="mini" data-act="pwd" data-u="'+esc(u.username)+'">重置密码</button>'
++'<button class="mini danger" data-act="del" data-u="'+esc(u.username)+'">注销</button>')+"</td>";
+tb.appendChild(tr);});
+renderBanned(users);
+});
+get("/api/admin/rooms")
+.then(function(j){
+if(!j.ok)return;
+var rooms=j.rooms||[];
+$("#st-rooms").textContent=rooms.length;
+$("#room-cnt").textContent=rooms.length+" 个";
+var tb=$("#room-tbody");tb.innerHTML="";
+rooms.forEach(function(r){
+var tr=document.createElement("tr");
+tr.innerHTML="<td>"+(r.has_password?"🔒 ":"")+esc(r.name)+(r.id==="public"?' <span class="tag">默认</span>':"")+"</td>"+
+"<td>@"+esc(r.owner||"—")+"</td>"+
+"<td>"+r.members+"</td>"+
+"<td>"+r.online+"</td>"+
+"<td>"+(r.has_password?"<span class=\"tag\">有密码</span>":"—")+"</td>"+
+"<td>"+(r.id==="public"?'<span style="color:var(--sub);font-size:12px">—</span>'
+:'<button class="mini danger" data-room="'+esc(r.id)+'" data-name="'+esc(r.name)+'">解散</button>')+"</td>";
+tb.appendChild(tr);});
+});
+}
+
+function renderBanned(users){
+var list=users.filter(function(u){return u.banned;});
+$("#ban-cnt").textContent=list.length+" 人";
+var tb=$("#ban-tbody");tb.innerHTML="";
+if(!list.length){tb.innerHTML='<tr><td colspan="3" class="empty">没有封禁中的账号</td></tr>';return;}
+list.forEach(function(u){
+var tr=document.createElement("tr");
+tr.innerHTML="<td>@"+esc(u.username)+"</td><td>"+esc(u.nickname)+"</td>"+
+'<td><button class="mini ok" data-u="'+esc(u.username)+'" data-ban="false">解除封禁</button></td>';
+tb.appendChild(tr);});
+}
+
+document.addEventListener("click", function(e){
+var b=e.target;
+if(!b.classList||!b.classList.contains("mini"))return;
+var u=b.getAttribute("data-u");
+if(b.dataset.act==="pwd"){
+var np=prompt("为 @"+u+" 设置新密码 (至少4位):");
+if(!np||np.length<4)return toast("密码至少4位");
+post("/api/admin/password", {user:admUser, target:u, new_password:np},
+function(j){toast(j.msg);});
+return;
+}
+if(b.dataset.act==="del"){
+if(!confirm("确定注销账号 @"+u+"? 该操作不可恢复"))return;
+post("/api/admin/delete", {user:admUser, target:u},
+function(j){toast(j.msg);if(j.ok)load();});
+return;
+}
+var room=b.getAttribute("data-room");
+if(room){
+if(!confirm("确定解散房间「"+b.getAttribute("data-name")+"」?"))return;
+post("/api/admin/room/delete", {user:admUser, room:room},
+function(j){toast(j.msg);if(j.ok)load();});
+return;
+}
+if(u){
+var ban=b.getAttribute("data-ban")==="true";
+post("/api/admin/ban", {user:admUser, target:u, ban:ban},
+function(j){toast(j.msg);if(j.ok)load();});
+}
+});
+
+$("#user-search-btn").onclick=function(){var k=$("#user-search").value.trim();
+get("/api/admin/users?q="+encodeURIComponent(k),
+function(j){if(!j.ok)return;renderUsers(j.users||[],j.online||[]);});};
+$("#user-reset").onclick=function(){$("#user-search").value="";load();};
+function renderUsers(users,online){
+var onSet={};online.forEach(function(o){onSet[o.username]=true;});
+$("#user-cnt").textContent=users.length+" 人";
+var tb=$("#user-tbody");tb.innerHTML="";
+users.forEach(function(u){var on=!!onSet[u.username];
+var tr=document.createElement("tr");
+tr.innerHTML="<td>@"+esc(u.username)+(u.is_admin?' <span class="tag admin">管理</span>':"")+(u.banned?' <span class="tag banned">已封</span>':"")+"</td>"+
+"<td>"+esc(u.nickname)+"</td>"+'<td class="'+(on?"online":"offline")+'">'+(on?"🟢 在线":"⚪ 离线")+"</td>"+
+"<td>"+(u.is_admin?'<span style="color:var(--sub);font-size:12px">—</span>'
+:'<button class="mini '+(u.banned?"ok":"danger")+'" data-u="'+esc(u.username)+'" data-ban="'+(!u.banned)+'">'+(u.banned?"解封":"封禁")+"</button>"
++'<button class="mini" data-act="pwd" data-u="'+esc(u.username)+'">重置密码</button>'
++'<button class="mini danger" data-act="del" data-u="'+esc(u.username)+'">注销</button>')+"</td>";
+tb.appendChild(tr);});}
+
+/* token 不持久化, 每次进入后台需重新输入密码 */
+setInterval(function(){if(!$("#admin-box").classList.contains("hidden"))load();},8000);
+</script>
+</body>
+</html>
